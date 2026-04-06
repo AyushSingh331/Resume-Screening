@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Resume Screener</title>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; }
+        body, h1, p { margin: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            background: radial-gradient(circle at center, #013e8d 0%, #001f4d 100%);
+            color: white;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden; 
+        }
+
+        .container {
+            text-align: center;
+            max-width: 900px;
+            width: 100%;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .hero-title {
+            font-size: 8rem; 
+            font-weight: 800;
+            letter-spacing: -0.05em; 
+            line-height: 0.9;
+            margin-bottom: 25px;
+            text-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .hero-tagline {
+            font-size: 1.4rem;
+            font-weight: 400;
+            color: rgba(255,255,255,0.8);
+            margin-bottom: 50px;
+            max-width: 650px;
+        }
+
+        .action-card {
+            background: rgba(255, 255, 255, 0.1); 
+            backdrop-filter: blur(10px); 
+            padding: 30px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.2);
+            width: 500px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.3);
+            transition: all 0.3s ease;
+        }
+
+        .action-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(255,255,255,0.4);
+        }
+
+        .upload-zone {
+            border: 2px dashed rgba(255,255,255,0.3);
+            padding: 30px 15px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .upload-zone:hover {
+            border-color: white;
+            background: rgba(255,255,255,0.05);
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 10px;
+        }
+
+        #file-label {
+            font-weight: 500;
+            margin: 0;
+            color: white;
+        }
+
+        #file-sub-label {
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.6);
+            margin: 5px 0 0 0;
+        }
+
+        .btn {
+            background: #ffffff;
+            color: #001f4d; 
+            border: none;
+            padding: 15px 30px;
+            border-radius: 12px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-top: 20px;
+            transition: 0.2s;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .btn:hover {
+            background: #eef2ff;
+            transform: scale(1.02);
+        }
+
+        .btn:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+            color: rgba(255,255,255,0.7);
+        }
+
+        #result {
+            margin-top: 30px;
+            padding: 20px;
+            border-radius: 12px;
+            background: rgba(14, 165, 233, 0.2); 
+            border: 1px solid rgba(14, 165, 233, 0.5);
+            color: #ffffff;
+            display: none;
+            width: 100%;
+            animation: fadeIn 0.4s ease;
+        }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        @media (max-width: 900px) {
+            .hero-title { font-size: 5rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 class="hero-title">Resume Screening</h1>
+    <p class="hero-tagline">Our AI analyzes resumes to find the perfect professional fit.</p>
+    
+    <div class="action-card">
+        <div class="upload-zone" onclick="document.getElementById('fileInput').click()">
+            <div class="upload-icon">📄</div>
+            <p id="file-label">Choose a resume</p>
+            <p id="file-sub-label">Supported formats: PDF, DOCX, TXT</p>
+            <input type="file" id="fileInput" hidden accept=".txt,.pdf,.docx">
+        </div>
+
+        <button id="uploadBtn" class="btn">Analyze Resume</button>
+
+        <div id="result">
+            <p style="font-size:0.9rem; color: rgba(255,255,255,0.7); margin-bottom: 5px;">PREDICTED CATEGORY</p>
+            <h2 id="category-text" style="margin:0; font-weight:700;">Data Science</h2>
+        </div>
+    </div>
+</div>
+
+<script>
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const resultDiv = document.getElementById('result');
+    const categoryText = document.getElementById('category-text');
+    const fileLabel = document.getElementById('file-label');
+
+    fileInput.onchange = () => {
+        if(fileInput.files.length > 0) {
+            fileLabel.innerText = fileInput.files[0].name;
+            fileLabel.style.color = "#0ea5e9";
+        }
+    };
+
+    uploadBtn.onclick = async () => {
+        if (fileInput.files.length === 0) return alert("Please select a file first");
+
+        const formData = new FormData();
+        formData.append('resume', fileInput.files[0]);
+
+        uploadBtn.disabled = true;
+        uploadBtn.innerText = "Analyzing...";
+        resultDiv.style.display = 'none';
+
+        try {
+            const response = await fetch('/predict', { method: 'POST', body: formData });
+            const data = await response.json();
+
+            if (data.category) {
+                categoryText.innerText = data.category;
+                resultDiv.style.display = 'block';
+                uploadBtn.innerText = "Analyze Resume";
+            } else {
+                alert("Error: " + data.error);
+                uploadBtn.innerText = "Analyze Resume";
+            }
+        } catch (e) {
+            alert("Model connection failed!");
+            uploadBtn.innerText = "Analyze Resume";
+        } finally {
+            uploadBtn.disabled = false;
+        }
+    };
+</script>
+
+</body>
+</html>
